@@ -1,0 +1,308 @@
+-- Angur Gestion - esquema inicial MySQL 8
+-- Ejecutar una sola vez en MySQL Workbench o con el cliente mysql.
+-- Las operaciones de negocio deben ejecutarse desde el backend dentro de transacciones.
+
+CREATE DATABASE IF NOT EXISTS angur_gestion_admin
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_0900_ai_ci;
+
+USE angur_gestion_admin;
+
+CREATE TABLE usuarios (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario         VARCHAR(80) NOT NULL,
+    correo          VARCHAR(254) NOT NULL,
+    nombre          VARCHAR(120) NOT NULL,
+    clave_hash      VARCHAR(255) NOT NULL COMMENT 'Verificador de contrasena; nunca texto plano',
+    rol             ENUM(
+                        'ADMINISTRADOR',
+                        'VENDEDOR',
+                        'CLIENTE',
+                        'SUPERVISOR_VENTAS',
+                        'ENCARGADO_ALMACEN'
+                    ) NOT NULL,
+    activo          BOOLEAN NOT NULL DEFAULT TRUE,
+    correo_verificado BOOLEAN NOT NULL DEFAULT FALSE,
+    version_sesion BIGINT NOT NULL DEFAULT 0,
+    creado_en       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_usuarios_usuario UNIQUE (usuario),
+    CONSTRAINT uq_usuarios_correo UNIQUE (correo),
+    INDEX ix_usuarios_rol_activo (rol, activo)
+) ENGINE = InnoDB;
+
+CREATE TABLE clientes (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario_id          BIGINT UNSIGNED NULL COMMENT 'Cuenta de acceso opcional; un cliente solo puede tener una cuenta',
+    creado_por          BIGINT UNSIGNED NOT NULL,
+    tipo                ENUM('PARTICULAR', 'EMPRESA') NOT NULL,
+    nombre_razon_social VARCHAR(180) NOT NULL,
+    correo              VARCHAR(254) NULL,
+    telefono            VARCHAR(30) NULL,
+    activo              BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_clientes_usuario UNIQUE (usuario_id),
+    CONSTRAINT fk_clientes_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_clientes_creado_por FOREIGN KEY (creado_por)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    INDEX ix_clientes_nombre (nombre_razon_social),
+    INDEX ix_clientes_activo_tipo (activo, tipo)
+) ENGINE = InnoDB;
+
+CREATE TABLE productos (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    codigo              VARCHAR(80) NOT NULL,
+    nombre              VARCHAR(160) NOT NULL,
+    descripcion         TEXT NULL,
+    costo_actual        DECIMAL(13, 2) NOT NULL DEFAULT 0.00,
+    precio_venta_actual DECIMAL(13, 2) NOT NULL DEFAULT 0.00,
+    activo              BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_productos_codigo UNIQUE (codigo),
+    CONSTRAINT chk_productos_costo CHECK (costo_actual >= 0),
+    CONSTRAINT chk_productos_precio CHECK (precio_venta_actual >= 0),
+    INDEX ix_productos_nombre (nombre),
+    INDEX ix_productos_activo (activo)
+) ENGINE = InnoDB;
+
+-- Reservas permanentes para que el código automático no se reutilice al borrar productos.
+CREATE TABLE codigos_producto (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    codigo      VARCHAR(80) NULL,
+    creado_en   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_codigos_producto_codigo UNIQUE (codigo)
+) ENGINE = InnoDB;
+
+CREATE TABLE existencias (
+    producto_id     BIGINT UNSIGNED NOT NULL,
+    cantidad        INT UNSIGNED NOT NULL DEFAULT 0,
+    actualizado_en  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (producto_id),
+    CONSTRAINT fk_existencias_producto FOREIGN KEY (producto_id)
+        REFERENCES productos (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT chk_existencias_no_negativas CHECK (cantidad >= 0)
+) ENGINE = InnoDB;
+
+CREATE TABLE cotizaciones (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cliente_id      BIGINT UNSIGNED NOT NULL,
+    vendedor_id     BIGINT UNSIGNED NOT NULL,
+    estado          ENUM(
+                        'BORRADOR',
+                        'PENDIENTE',
+                        'EMITIDA',
+                        'ACEPTADA',
+                        'RECHAZADA',
+                        'CANCELADA',
+                        'CONVERTIDA_EN_VENTA'
+                    ) NOT NULL DEFAULT 'PENDIENTE',
+    observaciones   VARCHAR(1000) NULL,
+    emitida_en      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    total           DECIMAL(13, 2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_cotizaciones_cliente FOREIGN KEY (cliente_id)
+        REFERENCES clientes (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_cotizaciones_vendedor FOREIGN KEY (vendedor_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT chk_cotizaciones_total CHECK (total >= 0),
+    INDEX ix_cotizaciones_cliente_fecha (cliente_id, emitida_en),
+    INDEX ix_cotizaciones_vendedor_fecha (vendedor_id, emitida_en),
+    INDEX ix_cotizaciones_estado_fecha (estado, emitida_en)
+) ENGINE = InnoDB;
+
+CREATE TABLE cotizacion_partidas (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cotizacion_id       BIGINT UNSIGNED NOT NULL,
+    producto_id         BIGINT UNSIGNED NULL COMMENT 'NULL si el producto se elimino; codigo y nombre conservan la instantanea',
+    codigo_producto     VARCHAR(80) NOT NULL COMMENT 'Instantanea para conservar el detalle historico',
+    nombre_producto     VARCHAR(160) NOT NULL COMMENT 'Instantanea para conservar el detalle historico',
+    cantidad            INT UNSIGNED NOT NULL,
+    precio_unitario     DECIMAL(13, 2) NOT NULL,
+    subtotal            DECIMAL(13, 2) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_cotizacion_producto UNIQUE (cotizacion_id, producto_id),
+    CONSTRAINT fk_cotizacion_partidas_cotizacion FOREIGN KEY (cotizacion_id)
+        REFERENCES cotizaciones (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_cotizacion_partidas_producto FOREIGN KEY (producto_id)
+        REFERENCES productos (id) ON UPDATE RESTRICT ON DELETE SET NULL,
+    CONSTRAINT chk_cotizacion_partida_cantidad CHECK (cantidad > 0),
+    CONSTRAINT chk_cotizacion_partida_precio CHECK (precio_unitario >= 0),
+    CONSTRAINT chk_cotizacion_partida_subtotal CHECK (subtotal = ROUND(cantidad * precio_unitario, 2)),
+    INDEX ix_cotizacion_partidas_producto (producto_id)
+) ENGINE = InnoDB;
+
+CREATE TABLE ventas (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cliente_id          BIGINT UNSIGNED NULL COMMENT 'NULL permite ventas directas sin cliente registrado',
+    cotizacion_id       BIGINT UNSIGNED NULL,
+    vendedor_id         BIGINT UNSIGNED NOT NULL,
+    clave_operacion     VARCHAR(100) NOT NULL COMMENT 'Clave de idempotencia compartida por reintentos',
+    estado              ENUM('REGISTRADA', 'CANCELADA') NOT NULL DEFAULT 'REGISTRADA',
+    fecha               DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    total               DECIMAL(13, 2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_ventas_clave_operacion UNIQUE (clave_operacion),
+    CONSTRAINT uq_ventas_cotizacion UNIQUE (cotizacion_id),
+    CONSTRAINT fk_ventas_cliente FOREIGN KEY (cliente_id)
+        REFERENCES clientes (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_ventas_cotizacion FOREIGN KEY (cotizacion_id)
+        REFERENCES cotizaciones (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_ventas_vendedor FOREIGN KEY (vendedor_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT chk_ventas_total CHECK (total >= 0),
+    INDEX ix_ventas_cliente_fecha (cliente_id, fecha),
+    INDEX ix_ventas_vendedor_fecha (vendedor_id, fecha),
+    INDEX ix_ventas_estado_fecha (estado, fecha)
+) ENGINE = InnoDB;
+
+CREATE TABLE venta_partidas (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    venta_id            BIGINT UNSIGNED NOT NULL,
+    producto_id         BIGINT UNSIGNED NULL COMMENT 'NULL si el producto se elimino; codigo y nombre conservan la instantanea',
+    codigo_producto     VARCHAR(80) NOT NULL COMMENT 'Instantanea para conservar el detalle historico',
+    nombre_producto     VARCHAR(160) NOT NULL COMMENT 'Instantanea para conservar el detalle historico',
+    cantidad            INT UNSIGNED NOT NULL,
+    precio_unitario     DECIMAL(13, 2) NOT NULL,
+    costo_unitario      DECIMAL(13, 2) NOT NULL,
+    subtotal            DECIMAL(13, 2) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_venta_producto UNIQUE (venta_id, producto_id),
+    CONSTRAINT fk_venta_partidas_venta FOREIGN KEY (venta_id)
+        REFERENCES ventas (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_venta_partidas_producto FOREIGN KEY (producto_id)
+        REFERENCES productos (id) ON UPDATE RESTRICT ON DELETE SET NULL,
+    CONSTRAINT chk_venta_partida_cantidad CHECK (cantidad > 0),
+    CONSTRAINT chk_venta_partida_precio CHECK (precio_unitario >= 0),
+    CONSTRAINT chk_venta_partida_costo CHECK (costo_unitario >= 0),
+    CONSTRAINT chk_venta_partida_subtotal CHECK (subtotal = ROUND(cantidad * precio_unitario, 2)),
+    INDEX ix_venta_partidas_producto (producto_id)
+) ENGINE = InnoDB;
+
+CREATE TABLE movimientos_inventario (
+    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    producto_id             BIGINT UNSIGNED NULL COMMENT 'NULL si el producto se elimino; la instantanea conserva su identidad',
+    codigo_producto         VARCHAR(80) NOT NULL,
+    nombre_producto         VARCHAR(160) NOT NULL,
+    usuario_id              BIGINT UNSIGNED NOT NULL,
+    venta_id                BIGINT UNSIGNED NULL COMMENT 'Se llena para las salidas generadas por ventas',
+    tipo                    ENUM('ENTRADA', 'SALIDA') NOT NULL,
+    cantidad                INT UNSIGNED NOT NULL,
+    existencia_resultante   INT UNSIGNED NOT NULL,
+    motivo                  VARCHAR(255) NOT NULL,
+    clave_operacion         VARCHAR(100) NOT NULL COMMENT 'Evita duplicar entradas, salidas o ventas reintentadas',
+    fecha                   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_movimientos_operacion_producto_tipo UNIQUE (clave_operacion, producto_id, tipo),
+    CONSTRAINT fk_movimientos_producto FOREIGN KEY (producto_id)
+        REFERENCES productos (id) ON UPDATE RESTRICT ON DELETE SET NULL,
+    CONSTRAINT fk_movimientos_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_movimientos_venta FOREIGN KEY (venta_id)
+        REFERENCES ventas (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT chk_movimientos_cantidad CHECK (cantidad > 0),
+    CONSTRAINT chk_movimientos_existencia CHECK (existencia_resultante >= 0),
+    INDEX ix_movimientos_producto_fecha (producto_id, fecha),
+    INDEX ix_movimientos_usuario_fecha (usuario_id, fecha),
+    INDEX ix_movimientos_venta (venta_id)
+) ENGINE = InnoDB;
+
+
+-- Una fila bloqueada hasta el COMMIT evita dos administradores iniciales.
+CREATE TABLE auth_setup (
+    id TINYINT NOT NULL PRIMARY KEY,
+    completado BOOLEAN NOT NULL DEFAULT FALSE,
+    administrador_principal_id BIGINT UNSIGNED NULL,
+    CONSTRAINT fk_auth_setup_principal FOREIGN KEY (administrador_principal_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT chk_auth_setup_id CHECK (id = 1)
+) ENGINE = InnoDB;
+INSERT INTO auth_setup (id, completado) VALUES (1, FALSE);
+CREATE TABLE auth_tokens (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    proposito ENUM('VERIFICAR_CORREO', 'RESTABLECER_CLAVE') NOT NULL,
+    vence_en TIMESTAMP(6) NOT NULL,
+    usado_en TIMESTAMP(6) NULL,
+    creado_en TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_auth_token_hash UNIQUE (token_hash),
+    CONSTRAINT fk_auth_tokens_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE RESTRICT,
+    INDEX ix_auth_tokens_usuario (usuario_id, proposito, usado_en)
+) ENGINE = InnoDB;
+
+CREATE TABLE solicitudes_admin (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario VARCHAR(80) NOT NULL,
+    correo VARCHAR(254) NOT NULL,
+    nombre VARCHAR(120) NOT NULL,
+    solicitado_por BIGINT UNSIGNED NOT NULL,
+    administrador_principal_id BIGINT UNSIGNED NOT NULL,
+    token_aprobacion_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    token_aprobacion_vence_en TIMESTAMP(6) NOT NULL,
+    token_registro_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    token_registro_vence_en TIMESTAMP(6) NULL,
+    estado ENUM('PENDIENTE', 'APROBADA', 'RECHAZADA', 'COMPLETADA', 'VENCIDA') NOT NULL DEFAULT 'PENDIENTE',
+    cuenta_creada_id BIGINT UNSIGNED NULL,
+    creado_en TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    resuelto_en TIMESTAMP(6) NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_solicitudes_admin_aprobacion UNIQUE (token_aprobacion_hash),
+    CONSTRAINT uq_solicitudes_admin_registro UNIQUE (token_registro_hash),
+    CONSTRAINT fk_solicitudes_admin_solicitante FOREIGN KEY (solicitado_por)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_solicitudes_admin_principal FOREIGN KEY (administrador_principal_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT fk_solicitudes_admin_cuenta FOREIGN KEY (cuenta_creada_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    INDEX ix_solicitudes_admin_estado_fecha (estado, creado_en),
+    INDEX ix_solicitudes_admin_correo (correo, estado)
+) ENGINE = InnoDB;
+
+-- Bitácora de cambios administrativos y operaciones que no se expresan como movimiento transaccional.
+CREATE TABLE auditoria_eventos (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario_id      BIGINT UNSIGNED NOT NULL,
+    entidad_tipo    VARCHAR(30) NOT NULL,
+    entidad_clave   VARCHAR(100) NOT NULL,
+    accion          VARCHAR(30) NOT NULL,
+    descripcion    VARCHAR(500) NOT NULL,
+    creado_en       TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_auditoria_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    INDEX ix_auditoria_fecha (creado_en, id),
+    INDEX ix_auditoria_usuario_fecha (usuario_id, creado_en),
+    INDEX ix_auditoria_entidad (entidad_tipo, entidad_clave, creado_en)
+) ENGINE = InnoDB;
+
+-- Sesiones compartidas entre instancias (necesarias para despliegues que escalan horizontalmente).
+CREATE TABLE SPRING_SESSION (
+    PRIMARY_ID CHAR(36) NOT NULL,
+    SESSION_ID CHAR(36) NOT NULL,
+    CREATION_TIME BIGINT NOT NULL,
+    LAST_ACCESS_TIME BIGINT NOT NULL,
+    MAX_INACTIVE_INTERVAL INT NOT NULL,
+    EXPIRY_TIME BIGINT NOT NULL,
+    PRINCIPAL_NAME VARCHAR(100),
+    CONSTRAINT SPRING_SESSION_PK PRIMARY KEY (PRIMARY_ID)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+CREATE UNIQUE INDEX SPRING_SESSION_IX1 ON SPRING_SESSION (SESSION_ID);
+CREATE INDEX SPRING_SESSION_IX2 ON SPRING_SESSION (EXPIRY_TIME);
+CREATE INDEX SPRING_SESSION_IX3 ON SPRING_SESSION (PRINCIPAL_NAME);
+
+CREATE TABLE SPRING_SESSION_ATTRIBUTES (
+    SESSION_PRIMARY_ID CHAR(36) NOT NULL,
+    ATTRIBUTE_NAME VARCHAR(200) NOT NULL,
+    ATTRIBUTE_BYTES BLOB NOT NULL,
+    CONSTRAINT SPRING_SESSION_ATTRIBUTES_PK PRIMARY KEY (SESSION_PRIMARY_ID, ATTRIBUTE_NAME),
+    CONSTRAINT SPRING_SESSION_ATTRIBUTES_FK FOREIGN KEY (SESSION_PRIMARY_ID)
+        REFERENCES SPRING_SESSION (PRIMARY_ID) ON DELETE CASCADE
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;

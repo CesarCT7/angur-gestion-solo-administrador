@@ -1,0 +1,31 @@
+package mx.velian.angurgestion.product.dao;
+
+import java.util.List;
+import java.util.Optional;
+
+import mx.velian.angurgestion.product.dto.ProductForm;
+import mx.velian.angurgestion.product.model.Product;
+
+public interface ProductRepository {
+    List<Product> findAll(String search);
+
+    List<Product> findArchived(String search);
+
+    Optional<Product> findById(long id);
+
+    long countActiveProducts();
+
+    long countActiveUnits();
+
+    String insert(ProductForm form);
+
+    int update(long id, ProductForm form);
+
+    boolean hasHistory(long id);
+
+    int archive(long id);
+
+    int restore(long id);
+
+    int deletePermanently(long id);
+}

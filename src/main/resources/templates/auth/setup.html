@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(${pageTitle})}"></head>
+<body class="login-page setup-page"><main class="setup-shell "><section class="setup-card">
+<a th:replace="~{auth/fields :: brand}"></a>
+<div class="alert alert-danger" role="alert" th:if="${formError}" th:text="${formError}"></div>
+<span class="setup-step">CONFIGURACIÓN DE PRIMER USO</span><h1>Crea la cuenta administradora</h1><p class="text-secondary">Esta opción está disponible una sola vez, antes de crear las demás cuentas.</p>
+<div class="alert alert-warning" role="alert" th:if="${databaseError}" th:text="${databaseError}"></div>
+<form th:action="@{/setup}" th:object="${form}" method="post" class="setup-form" novalidate><div class="alert alert-danger" role="alert" th:if="${#fields.hasErrors('*')}">Revisa los campos marcados antes de continuar.</div><fieldset th:disabled="${databaseReady != true}"><div th:replace="~{auth/fields :: accountFields('setup')}"></div><button class="btn btn-angur-primary w-100" type="submit">Crear administrador</button></fieldset></form><a class="back-link" th:href="@{/login}">Volver a iniciar sesión</a>
+</section></main></body></html>
