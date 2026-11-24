@@ -11,13 +11,13 @@ public class ReportsService {
     private final ReportsRepository reports;
     public ReportsService(ReportsRepository reports){this.reports=reports;}
 
-    public ReportFilter normalize(LocalDate from, LocalDate to, String client, String product, String seller){
+    public ReportFilter normalize(LocalDate from, LocalDate to, String product, String seller){
         LocalDate end=to==null?LocalDate.now():to;
         LocalDate start=from==null?end.withDayOfMonth(1):from;
         if(start.isAfter(end))throw new IllegalArgumentException("La fecha inicial debe ser anterior o igual a la fecha final.");
         if(end.isAfter(LocalDate.now().plusDays(1)))throw new IllegalArgumentException("La fecha final no puede estar en el futuro.");
         if(start.isBefore(end.minusYears(5)))throw new IllegalArgumentException("El reporte permite consultar hasta cinco años por búsqueda.");
-        return new ReportFilter(start,end,clean(client),clean(product),clean(seller));
+        return new ReportFilter(start,end,clean(product),clean(seller));
     }
     public ReportSummary summarize(ReportFilter f){return reports.summarize(f);}
     public List<MonthlyReportRow> byMonth(ReportFilter f){return reports.byMonth(f);}

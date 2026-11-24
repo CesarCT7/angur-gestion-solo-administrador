@@ -26,12 +26,12 @@ public class ReportsController {
     @GetMapping("/reportes")
     public String index(@RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(defaultValue="") String cliente,@RequestParam(defaultValue="") String producto,
+            @RequestParam(defaultValue="") String producto,
             @RequestParam(defaultValue="") String vendedor,Model model){
         LocalDate end=hasta==null?LocalDate.now():hasta; LocalDate start=desde==null?end.withDayOfMonth(1):desde;
         model.addAttribute("pageTitle","Reportes y ganancias · Análisis y control");model.addAttribute("activePage","analisis");
-        model.addAttribute("desde",start);model.addAttribute("hasta",end);model.addAttribute("cliente",cliente);model.addAttribute("producto",producto);model.addAttribute("vendedor",vendedor);
-        try{var filter=reports.normalize(start,end,cliente,producto,vendedor);model.addAttribute("summary",reports.summarize(filter));model.addAttribute("months",reports.byMonth(filter));model.addAttribute("products",reports.byProduct(filter));}
+        model.addAttribute("desde",start);model.addAttribute("hasta",end);model.addAttribute("producto",producto);model.addAttribute("vendedor",vendedor);
+        try{var filter=reports.normalize(start,end,producto,vendedor);model.addAttribute("summary",reports.summarize(filter));model.addAttribute("months",reports.byMonth(filter));model.addAttribute("products",reports.byProduct(filter));}
         catch(IllegalArgumentException e){model.addAttribute("formError",e.getMessage());}
         catch(DataAccessException e){log.error("Falló una consulta al generar el módulo de Reportes y ganancias",e);model.addAttribute("formError","No pudimos cargar el reporte. El detalle quedó registrado para revisión.");}
         return "reports/index";
@@ -40,9 +40,9 @@ public class ReportsController {
     @GetMapping("/reportes/exportar.csv")
     public ResponseEntity<byte[]> export(@RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(defaultValue="") String cliente,@RequestParam(defaultValue="") String producto,@RequestParam(defaultValue="") String vendedor){
+            @RequestParam(defaultValue="") String producto,@RequestParam(defaultValue="") String vendedor){
         LocalDate end=hasta==null?LocalDate.now():hasta;LocalDate start=desde==null?end.withDayOfMonth(1):desde;
-        var filter=reports.normalize(start,end,cliente,producto,vendedor);var summary=reports.summarize(filter);
+        var filter=reports.normalize(start,end,producto,vendedor);var summary=reports.summarize(filter);
         String csv=reports.csv(filter,summary,reports.byMonth(filter),reports.byProduct(filter));
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=angur-reporte-"+start+"-"+end+".csv")
                 .contentType(new MediaType("text","csv",StandardCharsets.UTF_8)).body(csv.getBytes(StandardCharsets.UTF_8));

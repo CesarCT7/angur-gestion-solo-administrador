@@ -48,11 +48,10 @@ public class JdbcHistoryRepository implements HistoryRepository {
         args.add(Timestamp.valueOf(f.to().plusDays(1).atStartOfDay()));
         add(sql,args,"h.tipo",f.type(),false);
         add(sql,args,"h.estado",f.status(),false);
-        add(sql,args,"h.cliente",f.client(),true);
         add(sql,args,"h.producto",f.product(),true);
         add(sql,args,"h.actor",f.actor(),true);
         if(f.search()!=null&&!f.search().isBlank()){
-            sql.append(" AND CONCAT(h.tipo,' ',h.id,' ',h.estado,' ',h.actor,' ',h.cliente,' ',h.producto,' ',h.descripcion) LIKE ?");
+            sql.append(" AND CONCAT(h.tipo,' ',h.id,' ',h.estado,' ',h.actor,' ',h.producto,' ',h.descripcion) LIKE ?");
             args.add("%"+f.search().trim()+"%");
         }
         sql.append(" ORDER BY h.fecha DESC,h.id DESC LIMIT 500");

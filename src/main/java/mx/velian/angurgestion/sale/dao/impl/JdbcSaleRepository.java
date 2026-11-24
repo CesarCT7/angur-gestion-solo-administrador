@@ -52,11 +52,11 @@ public class JdbcSaleRepository implements SaleRepository {
         addScope(sql, args, role, userId);
         String term = search == null ? "" : search.trim();
         if (!term.isEmpty()) {
-            sql.append(" AND (CAST(v.id AS CHAR) LIKE ? OR COALESCE(c.nombre_razon_social, 'Sin cliente') LIKE ? OR EXISTS (")
+            sql.append(" AND (CAST(v.id AS CHAR) LIKE ? OR EXISTS (")
                     .append("SELECT 1 FROM venta_partidas vp WHERE vp.venta_id = v.id ")
                     .append("AND (vp.codigo_producto LIKE ? OR vp.nombre_producto LIKE ?)))");
             String like = "%" + term + "%";
-            args.add(like); args.add(like); args.add(like); args.add(like);
+            args.add(like); args.add(like); args.add(like);
         }
         if (status != null) { sql.append(" AND v.estado = ?"); args.add(status.name()); }
         sql.append(" ORDER BY v.fecha DESC, v.id DESC");

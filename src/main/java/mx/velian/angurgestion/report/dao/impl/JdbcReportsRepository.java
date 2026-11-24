@@ -23,19 +23,17 @@ public class JdbcReportsRepository implements ReportsRepository {
     private MapSqlParameterSource params(ReportFilter f){
         var p=new MapSqlParameterSource().addValue("from",Timestamp.valueOf(f.from().atStartOfDay()))
                 .addValue("to",Timestamp.valueOf(f.to().plusDays(1).atStartOfDay()));
-        if(f.client()!=null&&!f.client().isBlank())p.addValue("client","%"+f.client().trim()+"%");
         if(f.product()!=null&&!f.product().isBlank())p.addValue("product","%"+f.product().trim()+"%");
         if(f.seller()!=null&&!f.seller().isBlank())p.addValue("seller","%"+f.seller().trim()+"%");
         return p;
     }
     private String where(ReportFilter f){
         StringBuilder s=new StringBuilder(" WHERE v.estado='REGISTRADA' AND v.fecha>=:from AND v.fecha<:to");
-        if(f.client()!=null&&!f.client().isBlank())s.append(" AND COALESCE(c.nombre_razon_social,'Sin cliente') LIKE :client");
         if(f.product()!=null&&!f.product().isBlank())s.append(" AND (vp.codigo_producto LIKE :product OR vp.nombre_producto LIKE :product)");
         if(f.seller()!=null&&!f.seller().isBlank())s.append(" AND (u.nombre LIKE :seller OR u.usuario LIKE :seller)");
         return s.toString();
     }
-    private String from(ReportFilter f){return " FROM ventas v JOIN venta_partidas vp ON vp.venta_id=v.id LEFT JOIN clientes c ON c.id=v.cliente_id JOIN usuarios u ON u.id=v.vendedor_id "+where(f);}
+    private String from(ReportFilter f){return " FROM ventas v JOIN venta_partidas vp ON vp.venta_id=v.id JOIN usuarios u ON u.id=v.vendedor_id "+where(f);}
 
     @Override public ReportSummary summarize(ReportFilter f){
         String q="SELECT COUNT(DISTINCT v.id) ventas,COALESCE(SUM(vp.subtotal),0) ingresos,COALESCE(SUM(vp.costo_unitario*vp.cantidad),0) costos,COALESCE(SUM(vp.subtotal-vp.costo_unitario*vp.cantidad),0) ganancia"+from(f);

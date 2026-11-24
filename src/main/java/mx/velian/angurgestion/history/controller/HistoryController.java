@@ -22,13 +22,13 @@ public class HistoryController {
     public String index(@RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(defaultValue="") String tipo,@RequestParam(defaultValue="") String estado,
-            @RequestParam(defaultValue="") String cliente,@RequestParam(defaultValue="") String producto,
+            @RequestParam(defaultValue="") String producto,
             @RequestParam(defaultValue="") String usuario,@RequestParam(defaultValue="") String q,Model model){
         LocalDate end=hasta==null?LocalDate.now():hasta; LocalDate start=desde==null?end.minusDays(29):desde;
         model.addAttribute("pageTitle","Historial y auditoría · Análisis y control");model.addAttribute("activePage","analisis");
         model.addAttribute("desde",start);model.addAttribute("hasta",end);model.addAttribute("tipo",tipo);model.addAttribute("estado",estado);
-        model.addAttribute("cliente",cliente);model.addAttribute("producto",producto);model.addAttribute("usuario",usuario);model.addAttribute("q",q);
-        try{model.addAttribute("entries",history.find(start,end,tipo,estado,cliente,producto,usuario,q));}
+        model.addAttribute("producto",producto);model.addAttribute("usuario",usuario);model.addAttribute("q",q);
+        try{model.addAttribute("entries",history.find(start,end,tipo,estado,producto,usuario,q));}
         catch(IllegalArgumentException e){model.addAttribute("formError",e.getMessage());model.addAttribute("entries",java.util.List.of());}
         catch(DataAccessException e){model.addAttribute("formError","No pudimos cargar el historial. Revisa la conexión con MySQL.");model.addAttribute("entries",java.util.List.of());}
         return "history/list";

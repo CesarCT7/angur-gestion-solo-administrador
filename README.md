@@ -69,7 +69,7 @@ La base MySQL es la fuente de datos prevista. No se guardan credenciales de acce
 - Un producto nuevo crea su registro de existencia con cantidad cero. Las entradas y salidas se registran desde Inventario, no desde el catálogo.
 - Las cotizaciones y ventas directas se emiten sin seleccionar cliente. Los documentos anteriores conservan su cliente histórico.
 - Inventario: consulta de existencias y hasta 100 movimientos recientes; administración y almacén registran entradas/salidas transaccionales con cantidad, motivo, usuario y saldo resultante. Ventas solo consulta disponibilidad.
-- Análisis y control (un solo apartado de navegación): reúne Historial/Auditoría y Reportes/Ganancias con pestañas internas. Historial consulta cotizaciones, ventas, movimientos y cambios administrativos con filtros y hasta 500 resultados; Reportes resume ventas registradas, ingresos, costos históricos y utilidad bruta, permite filtrar por cliente, producto y usuario, consultar cortes por mes/producto y descargar CSV. Las ventas canceladas se excluyen.
+- Análisis y control (un solo apartado de navegación): reúne Historial/Auditoría y Reportes/Ganancias con pestañas internas. Historial consulta cotizaciones, ventas, movimientos y cambios administrativos con filtros y hasta 500 resultados; Reportes resume ventas registradas, ingresos, costos históricos y utilidad bruta, permite filtrar por periodo, producto y usuario, consultar cortes por mes/producto y descargar CSV. Las ventas canceladas se excluyen.
 - En el catálogo se ocultan costos a roles que no deben consultarlos; el acceso a creación y edición de productos está restringido a administración y almacén.
 - Interfaz adaptable inspirada en el Look & Feel recibido, con navegación y estados vacíos. Cotizaciones y Ventas ya tienen vistas, permisos por rol y consulta de detalle.
 - Cotizaciones: partidas y precios congelados, cálculo del servidor, estados PENDIENTE/ACEPTADA/RECHAZADA, búsqueda, detalle e impresión.
@@ -90,8 +90,8 @@ Esta hoja de ruta resume funciones que aparecen en el alcance y todavía deben i
 2. **Cotizaciones:** implementado el flujo web inicial. Pendiente acordar transiciones adicionales de estado, cancelación y reglas de expiración.
 3. **Ventas:** implementado el registro inicial, incluido el descuento atómico de stock y la idempotencia. Pendiente acordar el proceso de cancelación y sus movimientos compensatorios.
 4. **Análisis y control:** Historial/Auditoría implementados para cotizaciones, ventas, inventario, productos, clientes y cuentas, dentro del mismo apartado de navegación que Reportes.
-5. **Búsqueda avanzada:** implementada en Historial con periodo, tipo/estado, cliente, producto, usuario y texto libre. Cotizaciones y Ventas conservan su búsqueda propia.
-6. **Reportes:** resumen inicial implementado por periodo, cliente, producto y usuario, con cortes mensual y por producto y exportación CSV, usando costos históricos; disponible como pestaña de Análisis y control.
+5. **Búsqueda avanzada:** implementada en Historial con periodo, tipo/estado, producto, usuario y texto libre. Cotizaciones y Ventas permiten buscar por folio, código o nombre de producto y filtrar por estado. El cliente histórico se muestra como referencia en los documentos.
+6. **Reportes:** resumen inicial implementado por periodo, producto y usuario, con cortes mensual y por producto y exportación CSV, usando costos históricos; disponible como pestaña de Análisis y control.
 7. **Cliente y Android/distribuidos:** revisar el alcance de esos documentos y definir integraciones o API antes de asumir que forman parte de esta aplicación web.
 8. **Pruebas y entrega:** convertir el plan de pruebas en pruebas funcionales y técnicas, completar accesibilidad/validaciones y documentar el despliegue.
 
@@ -243,6 +243,8 @@ Esta sección define el proceso para futuras peticiones de código:
 Siguiente paso: acordar transiciones pendientes de cotizaciones y cancelación de ventas; no implementar esas reglas hasta resolverlas. Android y servicios distribuidos continúan en una etapa posterior.
 
 ## 9. Verificación de esta variante
+
+- En MySQL aislado se comprobó que Cotizaciones y Ventas encuentran folios y códigos de producto, que Historial conserva la búsqueda por producto y que los nombres históricos ya no sirven de filtro. Reportes y su CSV ignoran el antiguo parámetro de cliente.
 
 - El 23 de noviembre de 2026 se aplicó la migración 007 en la base administrativa local tras respaldarla. Se comprobó que la columna admite NULL, conserva la clave foránea y que los datos coincidían antes y después.
 - En una instancia MySQL aislada, una sesión administradora emitió, consultó, imprimió y convirtió en venta una cotización sin cliente. Se comprobó también que una cotización anterior conservó su cliente y sus precios tras la migración, que ambos folios aparecieron en el historial y que ventas, inventario, reportes y CSV reflejaron las operaciones. La ruta /clientes devolvió 404 después de iniciar sesión.

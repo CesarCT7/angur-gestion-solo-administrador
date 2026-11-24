@@ -49,11 +49,11 @@ public class JdbcQuoteRepository implements QuoteRepository {
         addScope(sql, args, role, userId);
         String term = search == null ? "" : search.trim();
         if (!term.isEmpty()) {
-            sql.append(" AND (CAST(q.id AS CHAR) LIKE ? OR COALESCE(c.nombre_razon_social, 'Sin cliente') LIKE ? OR EXISTS (")
+            sql.append(" AND (CAST(q.id AS CHAR) LIKE ? OR EXISTS (")
                     .append("SELECT 1 FROM cotizacion_partidas cp WHERE cp.cotizacion_id = q.id ")
                     .append("AND (cp.codigo_producto LIKE ? OR cp.nombre_producto LIKE ?)))");
             String like = "%" + term + "%";
-            args.add(like); args.add(like); args.add(like); args.add(like);
+            args.add(like); args.add(like); args.add(like);
         }
         if (status != null) { sql.append(" AND q.estado = ?"); args.add(status.name()); }
         sql.append(" ORDER BY q.emitida_en DESC, q.id DESC");
