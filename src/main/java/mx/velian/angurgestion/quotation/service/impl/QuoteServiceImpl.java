@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import mx.velian.angurgestion.auth.model.UserRole;
 import mx.velian.angurgestion.quotation.dao.QuoteRepository;
 import mx.velian.angurgestion.quotation.dto.QuoteForm;
-import mx.velian.angurgestion.quotation.model.QuoteClientOption;
 import mx.velian.angurgestion.quotation.model.QuoteDetail;
 import mx.velian.angurgestion.quotation.model.QuoteLine;
 import mx.velian.angurgestion.quotation.model.QuoteProductOption;
@@ -51,17 +50,11 @@ public class QuoteServiceImpl implements QuoteService {
     }
 
     @Override
-    public List<QuoteClientOption> findActiveClients() { return quotes.findActiveClients(); }
-
-    @Override
     public List<QuoteProductOption> findActiveProducts() { return quotes.findActiveProducts(); }
 
     @Override
     @Transactional
     public long create(QuoteForm form, long sellerId) {
-        if (form.getClientId() == null || !quotes.isActiveClient(form.getClientId())) {
-            throw new InvalidQuoteException("Selecciona un cliente activo.");
-        }
         if (form.getItems() == null || form.getItems().isEmpty()) {
             throw new InvalidQuoteException("Agrega al menos un producto a la cotización.");
         }
@@ -91,7 +84,7 @@ public class QuoteServiceImpl implements QuoteService {
         if (form.getObservations() != null && form.getObservations().length() > 1000) {
             throw new InvalidQuoteException("Las observaciones no pueden superar 1000 caracteres.");
         }
-        long quoteId = quotes.insertHeader(form.getClientId(), sellerId, form.getObservations(), total);
+        long quoteId = quotes.insertHeader(sellerId, form.getObservations(), total);
         for (QuoteLine line : lines) {
             quotes.insertLine(quoteId, line.productId(), line.code(), line.productName(), line.quantity(),
                     line.unitPrice(), line.subtotal());

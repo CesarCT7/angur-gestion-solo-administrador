@@ -33,8 +33,6 @@ public interface UserRepository {
             UserRole role,
             boolean verified);
 
-    void createClient(long id, String type, String name, String email, long createdBy);
-
     void verifyEmail(long id);
 
     void changePassword(long id, String hash);

@@ -224,7 +224,14 @@ class IniciarAngur {
                                 .close();
                         st.executeQuery("SELECT administrador_principal_id FROM auth_setup WHERE id=1").close();
                     }
-                    System.out.println("MySQL: conexión y esquema de autenticación comprobados.");
+                    try (ResultSet column = connection.getMetaData().getColumns(
+                            connection.getCatalog(), null, "cotizaciones", "cliente_id")) {
+                        if (!column.next() || column.getInt("NULLABLE") != DatabaseMetaData.columnNullable)
+                            throw new IllegalStateException(
+                                    "para cotizar sin cliente, aplica la migración "
+                                    + "007-cotizaciones-sin-cliente.sql a la base administrativa.");
+                    }
+                    System.out.println("MySQL: conexión y esquema administrativo comprobados.");
                 } catch (SQLException error) {
                     if (error.getErrorCode() == 1045 || "28000".equals(error.getSQLState()))
                         throw new IllegalStateException(

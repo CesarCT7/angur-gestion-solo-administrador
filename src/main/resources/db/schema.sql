@@ -92,7 +92,7 @@ CREATE TABLE existencias (
 
 CREATE TABLE cotizaciones (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    cliente_id      BIGINT UNSIGNED NOT NULL,
+    cliente_id      BIGINT UNSIGNED NULL,
     vendedor_id     BIGINT UNSIGNED NOT NULL,
     estado          ENUM(
                         'BORRADOR',

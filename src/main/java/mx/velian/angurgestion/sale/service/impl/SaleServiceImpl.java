@@ -16,7 +16,6 @@ import mx.velian.angurgestion.auth.model.UserRole;
 import mx.velian.angurgestion.inventory.dao.InventoryRepository;
 import mx.velian.angurgestion.inventory.model.InventoryItem;
 import mx.velian.angurgestion.quotation.dao.QuoteRepository;
-import mx.velian.angurgestion.quotation.model.QuoteClientOption;
 import mx.velian.angurgestion.quotation.model.QuoteDetail;
 import mx.velian.angurgestion.quotation.model.QuoteProductOption;
 import mx.velian.angurgestion.product.dao.ProductRepository;
@@ -62,7 +61,6 @@ public class SaleServiceImpl implements SaleService {
     @Override public Optional<SaleDetail> findById(long id, UserRole role, long userId) {
         return sales.findById(id, role, userId);
     }
-    @Override public List<QuoteClientOption> findActiveClients() { return quotes.findActiveClients(); }
     @Override public List<QuoteProductOption> findActiveProducts() { return quotes.findActiveProducts(); }
 
     @Override
@@ -99,8 +97,7 @@ public class SaleServiceImpl implements SaleService {
                 drafts.add(new LineDraft(product, line.quantity(), line.unitPrice()));
             }
         } else {
-            clientId = form.getClientId();
-            if (clientId != null && !quotes.isActiveClient(clientId)) throw new InvalidSaleException("Selecciona un cliente activo.");
+            clientId = null;
             if (form.getItems() == null || form.getItems().isEmpty()) throw new InvalidSaleException("Agrega al menos un producto.");
             drafts = new ArrayList<>();
             Set<Long> unique = new HashSet<>();

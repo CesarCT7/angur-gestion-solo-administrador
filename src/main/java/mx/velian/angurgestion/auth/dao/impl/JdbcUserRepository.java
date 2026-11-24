@@ -122,17 +122,6 @@ public class JdbcUserRepository implements UserRepository {
         return Objects.requireNonNull(keys.getKey()).longValue();
     }
 
-    public void createClient(long id, String type, String name, String email, long author) {
-        jdbc.update(
-                "INSERT INTO clientes (usuario_id,creado_por,tipo,nombre_razon_social,correo)"
-                    + " VALUES (?,?,?,?,?)",
-                id,
-                author,
-                type,
-                name.trim(),
-                email.trim().toLowerCase(Locale.ROOT));
-    }
-
     public void verifyEmail(long id) {
         jdbc.update(
                 "UPDATE usuarios SET correo_verificado=TRUE,version_sesion=version_sesion+1 WHERE"

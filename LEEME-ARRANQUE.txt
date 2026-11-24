@@ -4,6 +4,9 @@ ANGUR GESTIÓN | VERSIÓN LOCAL PARA ADMINISTRADORES
 2. Necesitas un JDK 21 y una base MySQL. Si usas la base administrativa de
    esta misma computadora, copia en privado el .env de la carpeta original
    angur-gestion-solo-administrador a la carpeta extraída, junto a pom.xml.
+   Si vienes del ZIP del 21 de noviembre y usas otra instalación, respalda
+   su base administrativa y ejecuta una vez en MySQL la migración
+   src/main/resources/db/migrations/007-cotizaciones-sin-cliente.sql.
 3. Para usar la aplicación compilada, abre una terminal en esa carpeta y ejecuta
 
    .\iniciar-angur.cmd --jar

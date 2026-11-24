@@ -13,15 +13,15 @@ import org.springframework.stereotype.Repository;
 public class JdbcHistoryRepository implements HistoryRepository {
     private static final String UNION = """
             SELECT 'COTIZACION' tipo, c.id, c.emitida_en fecha, c.estado, u.nombre actor,
-                   cl.nombre_razon_social cliente, COALESCE(p.productos,'') producto,
+                   COALESCE(cl.nombre_razon_social,'Sin cliente') cliente, COALESCE(p.productos,'') producto,
                    CONCAT('Cotización #',c.id,CASE WHEN c.observaciones IS NULL OR c.observaciones='' THEN '' ELSE CONCAT(' · ',c.observaciones) END) descripcion,
                    c.total monto, CONCAT('/cotizaciones/',c.id) enlace
             FROM cotizaciones c JOIN usuarios u ON u.id=c.vendedor_id
-            JOIN clientes cl ON cl.id=c.cliente_id
+            LEFT JOIN clientes cl ON cl.id=c.cliente_id
             LEFT JOIN (SELECT cotizacion_id,GROUP_CONCAT(DISTINCT nombre_producto ORDER BY nombre_producto SEPARATOR ', ') productos FROM cotizacion_partidas GROUP BY cotizacion_id) p ON p.cotizacion_id=c.id
             UNION ALL
             SELECT 'VENTA', v.id, v.fecha, v.estado, u.nombre,
-                   COALESCE(cl.nombre_razon_social,'Venta mostrador'), COALESCE(p.productos,''),
+                   COALESCE(cl.nombre_razon_social,'Sin cliente'), COALESCE(p.productos,''),
                    CONCAT('Venta #',v.id,CASE WHEN v.cotizacion_id IS NULL THEN '' ELSE CONCAT(' · Cotización #',v.cotizacion_id) END),
                    v.total, CONCAT('/ventas/',v.id)
             FROM ventas v JOIN usuarios u ON u.id=v.vendedor_id

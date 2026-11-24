@@ -30,7 +30,7 @@ public class JdbcReportsRepository implements ReportsRepository {
     }
     private String where(ReportFilter f){
         StringBuilder s=new StringBuilder(" WHERE v.estado='REGISTRADA' AND v.fecha>=:from AND v.fecha<:to");
-        if(f.client()!=null&&!f.client().isBlank())s.append(" AND COALESCE(c.nombre_razon_social,'Venta mostrador') LIKE :client");
+        if(f.client()!=null&&!f.client().isBlank())s.append(" AND COALESCE(c.nombre_razon_social,'Sin cliente') LIKE :client");
         if(f.product()!=null&&!f.product().isBlank())s.append(" AND (vp.codigo_producto LIKE :product OR vp.nombre_producto LIKE :product)");
         if(f.seller()!=null&&!f.seller().isBlank())s.append(" AND (u.nombre LIKE :seller OR u.usuario LIKE :seller)");
         return s.toString();

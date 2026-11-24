@@ -1,6 +1,6 @@
 # Angur Gestión — variante solo administrador
 
-Sistema web para apoyar la operación de **Angur Display**: productos, existencias, clientes, cotizaciones, ventas y consultas de gestión. Este README es el punto de entrada para entender el proyecto, saber qué existe realmente en el código y continuar el desarrollo sin perder las peticiones ni confundirlas con requisitos de los documentos.
+Sistema web para apoyar la operación de **Angur Display**: productos, existencias, cotizaciones, ventas y consultas de gestión. Este README es el punto de entrada para entender el proyecto, saber qué existe realmente en el código y continuar el desarrollo sin perder las peticiones ni confundirlas con requisitos de los documentos.
 
 **Estado de esta copia:** variante web administrativa en desarrollo; el proyecto original queda separado e intacto.
 **Base de datos:** `angur_gestion_admin` (independiente de la base original).
@@ -11,7 +11,7 @@ Sistema web para apoyar la operación de **Angur Display**: productos, existenci
 
 ## 1. Qué es y qué busca resolver
 
-Angur Gestión centralizará la información comercial y operativa de Angur Display. El alcance esperado incluye catálogo de productos, control de inventario, registro de clientes, cotizaciones, ventas, historial de movimientos y resúmenes financieros, con acceso según el rol de cada cuenta.
+Angur Gestión centralizará la información comercial y operativa de Angur Display. El alcance esperado incluye catálogo de productos, control de inventario, cotizaciones, ventas, historial de movimientos y resúmenes financieros, con acceso según el rol de cada cuenta.
 
 La aplicación está en construcción. Que un requisito aparezca en este documento **no significa que esté implementado**. Consulta las secciones **Hecho en el código** y **Pendiente**.
 
@@ -56,7 +56,7 @@ La base MySQL es la fuente de datos prevista. No se guardan credenciales de acce
 - Inicio de sesión con usuario o correo, sesión web y Spring Security.
 - Contraseñas almacenadas con BCrypt.
 - Alta inicial del administrador en /setup, protegida mediante bloqueo transaccional frente a solicitudes simultáneas.
-- Solo las cuentas ADMINISTRADOR pueden iniciar sesión en esta variante. El registro y el portal de cuentas CLIENTE están retirados; se conservan las fichas comerciales de clientes para cotizaciones y ventas.
+- Solo las cuentas ADMINISTRADOR pueden iniciar sesión en esta variante. El registro y el portal de cuentas CLIENTE están retirados; los nombres asociados a operaciones anteriores siguen disponibles en sus documentos.
 - El primer administrador de `/setup` queda designado automáticamente como principal. Las solicitudes siguientes requieren sesión administradora, se envían por correo al principal y no crean cuentas hasta su aprobación. La persona invitada define su contraseña en un enlace de un solo uso que vence en 48 horas.
 - El principal puede transferir la designación a otro administrador activo y verificado; no se puede desactivar al principal antes de transferirla.
 - Recuperación de acceso desde una sola opción del login: envía verificación si el correo aún no está verificado, o recuperación de contraseña si ya lo está. Los enlaces son aleatorios, de un solo uso y vencen en 24 horas (verificación) o 30 minutos (contraseña); solo se almacena su hash.
@@ -67,7 +67,7 @@ La base MySQL es la fuente de datos prevista. No se guardan credenciales de acce
 - Catálogo de productos: consultar, buscar, crear y editar. Los productos sin historial ni existencia se eliminan físicamente; los que tienen historial o existencia se archivan y pueden restaurarse o eliminarse definitivamente sin perder partidas ni movimientos históricos.
 - Al crear un producto, el sistema asigna un código `ANG-00000001` secuencial e inmutable. Las reservas se conservan aunque se elimine definitivamente el producto.
 - Un producto nuevo crea su registro de existencia con cantidad cero. Las entradas y salidas se registran desde Inventario, no desde el catálogo.
-- Clientes: búsqueda por nombre, correo o teléfono; alta y edición con prevención de contactos activos duplicados, asociación opcional a una cuenta verificada, desactivación y reactivación con conservación de historial.
+- Las cotizaciones y ventas directas se emiten sin seleccionar cliente. Los documentos anteriores conservan su cliente histórico.
 - Inventario: consulta de existencias y hasta 100 movimientos recientes; administración y almacén registran entradas/salidas transaccionales con cantidad, motivo, usuario y saldo resultante. Ventas solo consulta disponibilidad.
 - Análisis y control (un solo apartado de navegación): reúne Historial/Auditoría y Reportes/Ganancias con pestañas internas. Historial consulta cotizaciones, ventas, movimientos y cambios administrativos con filtros y hasta 500 resultados; Reportes resume ventas registradas, ingresos, costos históricos y utilidad bruta, permite filtrar por cliente, producto y usuario, consultar cortes por mes/producto y descargar CSV. Las ventas canceladas se excluyen.
 - En el catálogo se ocultan costos a roles que no deben consultarlos; el acceso a creación y edición de productos está restringido a administración y almacén.
@@ -110,7 +110,7 @@ El detalle de las observaciones del esquema está en src/main/resources/db/READM
 
 - Los requerimientos nombran PENDIENTE como estado inicial de cotización, mientras que un diagrama también propone BORRADOR y EMITIDA. El esquema admite esos valores; falta acordar las transiciones.
 - Se contempla CANCELADA para ventas, pero falta acordar el proceso y si cancelar crea un movimiento compensatorio. No implementar cancelación hasta resolverlo.
-- Correo y teléfono de cliente se dejaron opcionales en el esquema inicial; confirmar obligatoriedad con el usuario/product owner.
+- La tabla de clientes se conserva para consultar documentos históricos.
 - Los importes usan dos decimales; falta confirmar si se debe fijar una moneda explícita.
 
 ## 6. Preparar y ejecutar localmente
@@ -157,7 +157,7 @@ Las variables de la terminal tienen prioridad sobre `.env`; se admiten valores e
 3. Comprueba que existan las tablas: usuarios, clientes, productos, codigos_producto, existencias, cotizaciones, cotizacion_partidas, ventas, venta_partidas, movimientos_inventario, `auth_setup`, `auth_tokens` y `solicitudes_admin`.
 4. El esquema no inserta cuentas ni datos de demostración. El primer administrador se crea en `/setup` y queda como administrador principal.
 
-La base local separada de esta copia ya fue creada y tiene aplicadas las migraciones `001` a `005`. Para otra instalación existente, respalda la base y ejecuta solo las migraciones pendientes, en orden; no las apliques a la base del proyecto original.
+Para actualizar desde la versión con el apartado Clientes, respalda la base administrativa y aplica `007-cotizaciones-sin-cliente.sql`. La migración permite dejar vacío el cliente de la cotización y conserva las relaciones existentes. La migración de sesiones `006` corresponde al perfil de Vercel.
 
 ### Configurar credenciales en PowerShell
 
@@ -185,7 +185,7 @@ Después abre:
 - http://localhost:8080/setup — crear la primera cuenta administradora, una sola vez y con la base disponible.
 - http://localhost:8080/ — panel; requiere iniciar sesión.
 - http://localhost:8080/productos — catálogo; requiere el rol autorizado.
-- http://localhost:8080/clientes — fichas comerciales para cotizaciones y ventas; acceso solo administrador en esta copia.
+- http://localhost:8080/cotizaciones — emitir una cotización, consultar el historial por folio e imprimir el detalle.
 - http://localhost:8080/inventario — existencias; acceso solo administrador en esta copia.
 - No existe ruta de registro público para clientes en esta variante.
 - http://localhost:8080/recuperar-acceso — verificación o recuperación de contraseña según el estado de la cuenta.
@@ -203,7 +203,6 @@ Para detener el servidor, usa Ctrl+C en la terminal donde ejecutaste Maven. Si M
 src/main/java/mx/velian/angurgestion/
 ├── audit/         # bitácora persistente de cambios
 ├── auth/          # acceso, recuperación, cuentas y roles
-├── client/        # clientes y asociación opcional con cuenta
 ├── config/        # configuración de Spring Security
 ├── dashboard/     # resumen principal
 ├── history/       # sección de historial dentro de Análisis y control
@@ -244,6 +243,9 @@ Esta sección define el proceso para futuras peticiones de código:
 Siguiente paso: acordar transiciones pendientes de cotizaciones y cancelación de ventas; no implementar esas reglas hasta resolverlas. Android y servicios distribuidos continúan en una etapa posterior.
 
 ## 9. Verificación de esta variante
+
+- El 23 de noviembre de 2026 se aplicó la migración 007 en la base administrativa local tras respaldarla. Se comprobó que la columna admite NULL, conserva la clave foránea y que los datos coincidían antes y después.
+- En una instancia MySQL aislada, una sesión administradora emitió, consultó, imprimió y convirtió en venta una cotización sin cliente. Se comprobó también que una cotización anterior conservó su cliente y sus precios tras la migración, que ambos folios aparecieron en el historial y que ventas, inventario, reportes y CSV reflejaron las operaciones. La ruta /clientes devolvió 404 después de iniciar sesión.
 
 - La base local separada `angur_gestion_admin` tiene el esquema de negocio, solicitudes administrativas y bitácora `auditoria_eventos`; el usuario `angur_admin` tiene permisos limitados a esa base. No se modificó la base original.
 - El lanzador comprobó la conexión y el esquema actualizado. La aplicación quedó iniciada en `localhost:18081`.
